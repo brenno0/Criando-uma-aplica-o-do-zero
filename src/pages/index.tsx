@@ -52,28 +52,40 @@ export default function Home({ postsPagination }: HomeProps) {
   })
 
   const [posts,setPosts] = useState<Post[]>(PostsFormatted);
-  const [pageSize,setPageSize] = useState<PostPagination>();
+  const [nextPage,setNextPage] = useState(postsPagination.next_page);
+  const [nextPageExists,setNextPageExists] = useState(1)
 
-  const handlePageSize = ()=>{
-
-    if(postsPagination.next_page !== null){
-      const newPostToPaginate = posts.map(post => {
-        return{
-          ...post,
-          uid:post.uid,
-          first_publication_date:post.first_publication_date,
-          data: {
-            title: post.data.title,
-            subtitle: post.data.subtitle,
-            author: post.data.author
-          }
-        }
-      })
-
+  async function handleNextPage() {
+    if(nextPageExists !== 1 && nextPage === null){
+      return;
     }
+    const postsResult = await fetch(`${nextPage}`).then(response =>
+      response.json()
+    );
+    setNextPage(postsResult.next_page);
+    setNextPageExists(postsResult.page);
+
+
+    const loadNewPosts = postsResult.results.map(post=> {
+      return {
+        uid:post.uid,
+        first_publication_date: format(
+          new Date(post.first_publication_date),
+          "dd MM yyyy",
+          {
+            locale:ptBR,
+          }
+        ),
+        data:{
+          title:post.data.title,
+          subtitle:post.data.subtitle,
+          author:post.data.author
+        }
+      }
+    })
+    setPosts([...posts,...loadNewPosts]);
   }
 
-     console.log('postsPagination',postsPagination.next_page)
   return(
     <div className={styles.container}>
     <Header />
@@ -91,7 +103,7 @@ export default function Home({ postsPagination }: HomeProps) {
     ))}
     {postsPagination.next_page !== null && (
 
-      <button className={styles.loadMore} onClick={handlePageSize}>Carregar mais posts</button>
+      <button type="button" className={styles.loadMore} onClick={handleNextPage}>Carregar mais posts</button>
 
     )}
   </div>
@@ -104,11 +116,11 @@ export const getStaticProps = async () => {
   const postsResponse = await prismic.query(
     [Prismic.predicates.at("document.type","posts",)],
     {
-      pageSize:2,
+      pageSize:1,
     }
     );
 
-    const posts: Post[] = postsResponse.results.map(posts => {
+    const posts = postsResponse.results.map(posts => {
       return {
         uid: posts.uid,
         first_publication_date: posts.first_publication_date,
@@ -119,7 +131,7 @@ export const getStaticProps = async () => {
         }
       }
     })
-    const postsPagination:PostPagination = {
+    const postsPagination = {
       next_page:postsResponse.next_page,
       results:posts,
     }
