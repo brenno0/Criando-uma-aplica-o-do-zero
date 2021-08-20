@@ -65,18 +65,20 @@ export const getStaticProps = async ({ params }) => {
 
   const post = {
     first_publication_date:response.first_publication_date,
+    uid:response.uid,
     data: {
       title: response.data.title,
-      banner: {
-        url:response.data.banner,
-      },
+      subtitle: response.data.subtitle,
       author:response.data.author,
-      content:{
-        heading:response.data.content,
-        body:{
-          // text:response.data.content.body,
+      banner: {
+        url:response.data.banner.url,
+      },
+      content:response.data.content.map(content =>{
+        return{
+          body:[...content.body],
+          heading:content.heading,
         }
-      }
+      })
     }
   }
 
