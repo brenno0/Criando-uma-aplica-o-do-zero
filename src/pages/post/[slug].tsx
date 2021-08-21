@@ -7,6 +7,9 @@ import Prismic from '@prismicio/client'
 
 import commonStyles from '../../styles/common.module.scss';
 import styles from './post.module.scss';
+import {AiOutlineCalendar} from 'react-icons/ai';
+import {BiUser} from 'react-icons/bi';
+
 
 interface Post {
   first_publication_date: string | null;
@@ -29,11 +32,23 @@ interface PostProps {
   post: Post;
 }
 
-export default function Post({ post }: PostProps) {
+export default function Post({ post }: PostProps) { 
+  
   return (
     <>
       <Header />
-      <h1>Página de post kkk..</h1>
+      <img src={post.data.banner.url} alt="" />
+      <div className={commonStyles.container}>
+        <article>
+          <h2> {post.data.title} </h2>
+          <small><AiOutlineCalendar />{post.first_publication_date}</small>
+          <small><BiUser />{post.data.author}</small>
+          <div className={styles.ContentContainer}>
+            
+          </div>
+        </article>
+
+      </div>
     </>
   )
 }
