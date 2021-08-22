@@ -4,12 +4,13 @@ import Header from '../../components/Header';
 
 import { getPrismicClient } from '../../services/prismic';
 import Prismic from '@prismicio/client'
+import format from 'date-fns/format';
 
 import commonStyles from '../../styles/common.module.scss';
 import styles from './post.module.scss';
-import {AiOutlineCalendar} from 'react-icons/ai';
-import {BiUser} from 'react-icons/bi';
-
+import { Head } from 'next/document';
+import { RichText } from 'prismic-dom';
+import { ptBR } from 'date-fns/locale';
 
 interface Post {
   first_publication_date: string | null;
@@ -32,28 +33,22 @@ interface PostProps {
   post: Post;
 }
 
-export default function Post({ post }: PostProps) { 
-  
+export default function Post({ post }: PostProps) {
   return (
     <>
       <Header />
-      <img src={post.data.banner.url} alt="" />
-      <div className={commonStyles.container}>
-        <article>
-          <h2> {post.data.title} </h2>
-          <small><AiOutlineCalendar />{post.first_publication_date}</small>
-          <small><BiUser />{post.data.author}</small>
-          <div className={styles.ContentContainer}>
-            
-          </div>
-        </article>
+      <img className={styles.fullWidth} src={post.data.banner.url} alt="" />
+
+      <div className={styles.container}>
+
+
 
       </div>
     </>
   )
 }
 
-export const getStaticPaths = async () => {
+export const getStaticPaths: GetStaticPaths = async () => {
   const prismic = getPrismicClient();
   const posts = await prismic.query(
     Prismic.predicates.at('document.type','posts'),
@@ -63,42 +58,47 @@ export const getStaticPaths = async () => {
       return{
         params:{
           slug:post.uid
+
         }
       }
     })
   return {
     paths,
-    fallback:false,
+    fallback:true,
   }
 };
 
-export const getStaticProps = async ({ params }) => {
-  const {slug} = params
+export const getStaticProps: GetStaticProps = async context => {
+  const {slug} = context.params
   const prismic = getPrismicClient();
   const response = await prismic.getByUID('posts',String(slug),{})
-
 
   const post = {
     first_publication_date:response.first_publication_date,
     uid:response.uid,
-    data: {
-      title: response.data.title,
-      subtitle: response.data.subtitle,
+    data:{
+      title:response.data.title,
+      subtitle:response.data.subtitle,
       author:response.data.author,
-      banner: {
+      banner:{
         url:response.data.banner.url,
       },
       content:response.data.content.map(content =>{
-        return{
+        return {
           body:[...content.body],
-          heading:content.heading,
+          heading:content.heading
         }
       })
     }
   }
+  //   title: string;
+  //   url: string;
+  //   author: string;
+  //   heading: string;
+  //   text: string;
 
   return {
     props:{post},
-    redirect: 60 * 30
+
   }
 };
