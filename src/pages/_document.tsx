@@ -1,22 +1,21 @@
-import Document, { Html, Head,Main, NextScript, } from 'next/document';
-import React from 'react';
+import Document, { Html, Head, Main, NextScript } from 'next/document';
+
 export default class MyDocument extends Document {
   render() {
     return (
-      <Html lang="pt-BR">
+      <Html>
         <Head>
+          <link rel="preconnect" href="https://fonts.gstatic.com" />
           <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com" />
-          <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" />
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+            rel="stylesheet"
+          />
         </Head>
         <body>
           <Main />
           <NextScript />
         </body>
       </Html>
-    )
+    );
   }
 }

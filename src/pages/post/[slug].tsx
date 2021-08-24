@@ -1,24 +1,26 @@
 import { GetStaticPaths, GetStaticProps } from 'next';
-import React, { useState } from 'react';
-import Header from '../../components/Header';
+import Head from 'next/head';
+
+import { FiCalendar, FiUser, FiClock } from 'react-icons/fi';
+
+import Prismic from '@prismicio/client';
 
 import { getPrismicClient } from '../../services/prismic';
-import Prismic from '@prismicio/client'
-import format from 'date-fns/format';
 
 import commonStyles from '../../styles/common.module.scss';
 import styles from './post.module.scss';
-import { Head } from 'next/document';
-import { RichText } from 'prismic-dom';
-import {FiCalendar, FiClock, FiUser} from 'react-icons/fi';
 
-import { ptBR } from 'date-fns/locale';
+import Header from '../../components/Header';
+import { RichText } from 'prismic-dom';
+
+import { formatDate } from '../../utils';
 import { useRouter } from 'next/router';
 
 interface Post {
   first_publication_date: string | null;
   data: {
     title: string;
+    subtitle: string;
     banner: {
       url: string;
     };
@@ -37,125 +39,119 @@ interface PostProps {
 }
 
 export default function Post({ post }: PostProps) {
-
-  const totalWords = post.data.content.reduce((total,contentItem) => {
-    total += contentItem.heading.split(' ').length;
-
-    const words = contentItem.body.map(item => item.text.split(' ').length)
-    words.map(word => (total+= word))
-    return total;
-  }, 0);
-  const readTime = Math.ceil(totalWords / 200);
-
-
-  const formateDate = format(
-    new Date(post.first_publication_date),
-    'dd MMM yyyy',
-    {
-      locale:ptBR
-    }
-  )
-
   const router = useRouter();
-  if(router.isFallback){
-    return <h1>Carregando...</h1>
+
+  if (router.isFallback) {
+    return <h1>Carregando...</h1>;
   }
+
+  const totalWords = post.data.content.reduce(
+    (totalContent, currentContent) => {
+      const headingWords = currentContent.heading?.split(' ').length || 0;
+
+      const bodyWords = currentContent.body.reduce((totalBody, currentBody) => {
+        const textWords = currentBody.text.split(' ').length;
+        return totalBody + textWords;
+      }, 0);
+
+      return totalContent + headingWords + bodyWords;
+    },
+    0
+  );
+
+  const timeEstimmed = Math.ceil(totalWords / 200);
 
   return (
     <>
-    {/* <Head>
-      { <title> {`${post.data.title} | spacetraveling `}</title> }
-    </Head> */}
+      <Head>
+        <title>{post.data.title} | spacetraveling</title>
+      </Head>
+
       <Header />
-      <img className={styles.banner} src={post.data.banner.url} alt="" />
+
+      <img src="/teste.png" alt="banner" className={styles.banner} />
       <main className={commonStyles.container}>
-        <div className={styles.post}>
-          <div className={styles.postTop}>
-            <h1>{post.data.title}</h1>
-            <ul>
-              <li>
-                <FiCalendar />
-                {formateDate}
-              </li>
-              <li>
-                <FiUser />
-                {post.data.author}
-              </li>
-              <li>
-                <FiClock />
-                {`${readTime} min`}
-              </li>
-            </ul>
+        <article className={styles.post}>
+          <h1>{post.data.title}</h1>
+          <div className={commonStyles.info}>
+            <time>
+              <FiCalendar />
+              {formatDate(post.first_publication_date)}
+            </time>
+            <span>
+              <FiUser />
+              {post.data.author}
+            </span>
+            <time>
+              <FiClock />
+              {timeEstimmed} min
+            </time>
           </div>
-            {post.data.content.map(content => (
-          <article key={content.heading}>
-              <>
-                <h2> {content.heading} </h2>
+          {post.data.content.map(content => {
+            return (
+              <section key={content.heading} className={styles.postContent}>
+                <h2>{content.heading}</h2>
                 <div
-                 dangerouslySetInnerHTML={{
-                   __html:RichText.asHtml(content.body)
-                 }}
-                />
-              </>
-          </article>
-            ))}
-        </div>
+                  dangerouslySetInnerHTML={{
+                    __html: RichText.asHtml(content.body),
+                  }}
+                ></div>
+              </section>
+            );
+          })}
+        </article>
       </main>
     </>
-  )
+  );
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
   const prismic = getPrismicClient();
-  const posts = await prismic.query(
-    Prismic.predicates.at('document.type','posts'),
-    {});
+  const posts = await prismic.query([
+    Prismic.Predicates.at('document.type', 'posts'),
+  ]);
 
-    const paths = posts.results.map(post =>{
-      return{
-        params:{
-          slug:post.uid
+  const paths = posts.results.map(post => {
+    return {
+      params: {
+        slug: post.uid,
+      },
+    };
+  });
 
-        }
-      }
-    })
   return {
     paths,
-    fallback:true,
-  }
+    fallback: true,
+  };
 };
 
 export const getStaticProps: GetStaticProps = async context => {
-  const {slug} = context.params
   const prismic = getPrismicClient();
-  const response = await prismic.getByUID('posts',String(slug),{})
+  const { slug } = context.params;
+  const response = await prismic.getByUID('posts', String(slug), {});
 
   const post = {
-    first_publication_date:response.first_publication_date,
-    uid:response.uid,
-    data:{
-      title:response.data.title,
-      subtitle:response.data.subtitle,
-      author:response.data.author,
-      banner:{
-        url:response.data.banner.url,
+    uid: response.uid,
+    first_publication_date: response.first_publication_date,
+    data: {
+      title: response.data.title,
+      subtitle: response.data.subtitle,
+      banner: {
+        url: response.data.banner.url,
       },
-      content:response.data.content.map(content =>{
+      author: response.data.author,
+      content: response.data.content.map(content => {
         return {
-          body:[...content.body],
-          heading:content.heading
-        }
-      })
-    }
-  }
-  //   title: string;
-  //   url: string;
-  //   author: string;
-  //   heading: string;
-  //   text: string;
+          heading: content.heading,
+          body: [...content.body],
+        };
+      }),
+    },
+  };
 
   return {
-    props:{post},
-
-  }
+    props: {
+      post,
+    },
+  };
 };

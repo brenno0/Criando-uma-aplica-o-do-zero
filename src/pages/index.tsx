@@ -1,17 +1,21 @@
+import { useState } from 'react';
 import { GetStaticProps } from 'next';
+import Head from 'next/head';
+import Link from 'next/link';
+
+import { FiCalendar, FiUser } from 'react-icons/fi';
+
+import Prismic from '@prismicio/client';
 
 import { getPrismicClient } from '../services/prismic';
 
 import commonStyles from '../styles/common.module.scss';
 import styles from './home.module.scss';
-import Link from 'next/Link';
-import {BiUser} from 'react-icons/bi';
-import {AiOutlineCalendar} from 'react-icons/ai';
-import Prismic from '@prismicio/client'
-import React, { useState } from 'react';
-import format from 'date-fns/format';
-import { ptBR } from 'date-fns/locale';
+
 import Header from '../components/Header';
+
+import { formatDate } from '../utils';
+
 interface Post {
   uid?: string;
   first_publication_date: string | null;
@@ -31,113 +35,102 @@ interface HomeProps {
   postsPagination: PostPagination;
 }
 
-export default function Home({ postsPagination }: HomeProps) {
-  // console.log('postsPagination',postsPagination.next_page)
+export default function Home({ postsPagination }: HomeProps): JSX.Element {
+  const [nextPage, setNextPage] = useState<string>(postsPagination.next_page);
 
-  const PostsFormatted = postsPagination.results.map(post => {
-    return{
+  const formattedPosts = postsPagination.results.map(post => {
+    return {
       ...post,
-      first_publication_date: format(
-        new Date(post.first_publication_date),
-        "dd MMM yyyy",
-        {
-          locale:ptBR,
-        }
-      ),
-    }
+      first_publication_date: formatDate(post.first_publication_date),
+    };
+  });
 
-  })
+  const [posts, setPosts] = useState<Post[]>(formattedPosts);
 
-  const [posts,setPosts] = useState<Post[]>(PostsFormatted);
-  const [nextPage,setNextPage] = useState(postsPagination.next_page);
-  const [nextPageExists,setNextPageExists] = useState(1)
-
-  async function handleNextPage() {
-    if(nextPageExists !== 1 && nextPage === null){
-      return;
-    }
-    const postsResult = await fetch(`${nextPage}`).then(response =>
+  async function handleLoadMorePosts(): Promise<void> {
+    const newPostsPagination = await fetch(nextPage).then(response =>
       response.json()
     );
-    setNextPage(postsResult.next_page);
-    setNextPageExists(postsResult.page);
 
+    setNextPage(newPostsPagination.next_page);
 
-    const loadNewPosts = postsResult.results.map(post=> {
+    const newFormattedPosts = newPostsPagination.results.map(post => {
       return {
-        uid:post.uid,
-        first_publication_date: format(
-          new Date(post.first_publication_date),
-          "dd MMM yyyy",
-          {
-            locale:ptBR,
-          }
-        ),
-        data:{
-          title:post.data.title,
-          subtitle:post.data.subtitle,
-          author:post.data.author
-        }
-      }
-    })
-    setPosts([...posts,...loadNewPosts]);
+        ...post,
+        first_publication_date: formatDate(post.first_publication_date),
+      };
+    });
+
+    setPosts([...posts, ...newFormattedPosts]);
   }
 
-  return(
-    <div className={styles.container}>
-    <Header />
-    {posts.map(post => (
-      <Link key={post.uid} href={`/post/${post.uid}`}>
-        <a className={styles.post}>
-          <strong>{post.data.title}</strong>
-          <p>{post.data.subtitle}</p>
-          <div className={styles.containerSmall}>
-            <time><AiOutlineCalendar />{post.first_publication_date}</time>
-            <small><BiUser/>{post.data.author}</small>
-          </div>
-        </a>
-      </Link>
-    ))}
-    {postsPagination.next_page !== null && (
+  return (
+    <>
+      <Head>
+        <title>Home | spacetraveling</title>
+      </Head>
 
-      <button type="button" className={styles.loadMore} onClick={handleNextPage}>Carregar mais posts</button>
-
-    )}
-  </div>
-  )
-
+      <main className={commonStyles.container}>
+        <div className={styles.posts}>
+          <Header />
+          {posts?.map(post => (
+            <Link key={post.uid} href={`/post/${post.uid}`}>
+              <a>
+                <strong>{post.data.title}</strong>
+                <p>{post.data.subtitle}</p>
+                <div className={commonStyles.info}>
+                  <time>
+                    <FiCalendar />
+                    {post.first_publication_date}
+                  </time>
+                  <span>
+                    <FiUser />
+                    {post.data.author}
+                  </span>
+                </div>
+              </a>
+            </Link>
+          ))}
+          {nextPage && (
+            <button type="button" onClick={handleLoadMorePosts}>
+              Carregar mais posts
+            </button>
+          )}
+        </div>
+      </main>
+    </>
+  );
 }
 
-export const getStaticProps = async () => {
+export const getStaticProps: GetStaticProps = async () => {
   const prismic = getPrismicClient();
   const postsResponse = await prismic.query(
-    [Prismic.predicates.at("document.type","posts",)],
+    [Prismic.predicates.at('document.type', 'posts')],
     {
-      pageSize:4,
+      pageSize: 1,
     }
-    );
+  );
 
-    const posts = postsResponse.results.map(posts => {
-      return {
-        uid: posts.uid,
-        first_publication_date: posts.first_publication_date,
-        data: {
-          title: posts.data.title,
-          subtitle: posts.data.subtitle,
-          author:posts.data.author,
-        }
-      }
-    })
-    const postsPagination = {
-      next_page:postsResponse.next_page,
-      results:posts,
-    }
-
+  const posts = postsResponse.results.map(post => {
     return {
-      props:{
-        postsPagination,
-      }
-    }
+      uid: post.uid,
+      first_publication_date: post.first_publication_date,
+      data: {
+        title: post.data.title,
+        subtitle: post.data.subtitle,
+        author: post.data.author,
+      },
+    };
+  });
 
+  const postsPagination = {
+    next_page: postsResponse.next_page,
+    results: posts,
+  };
 
+  return {
+    props: {
+      postsPagination,
+    },
+  };
 };
