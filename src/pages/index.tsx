@@ -32,10 +32,7 @@ interface HomeProps {
 }
 
 export default function Home({ postsPagination }: HomeProps) {
-
   // console.log('postsPagination',postsPagination.next_page)
-
-
 
   const PostsFormatted = postsPagination.results.map(post => {
     return{
